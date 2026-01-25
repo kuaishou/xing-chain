@@ -62,6 +62,7 @@ class Blockchain {
         if (this.isValidaBlock(newBlock)&&this.isValidChain()) {
 
             this.blockchain.push(newBlock)
+            return newBlock
         }else{
            console.log('ERROR invalid block',newBlock)
         }
@@ -139,9 +140,11 @@ class Blockchain {
 
     }
 }
-const block = new Blockchain()
-block.mine()
-block.blockchain[1].nonce=222
-block.mine()
-block.mine()
-console.log(block.blockchain)
+// const block = new Blockchain()
+// block.mine()
+// block.blockchain[1].nonce=222
+// block.mine()
+// block.mine()
+// console.log(block.blockchain)
+
+module.exports= Blockchain;
