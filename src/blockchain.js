@@ -54,14 +54,26 @@ class Blockchain {
     getLastBlock() {
         return this.blockchain[this.blockchain.length - 1]
     }
+    //转账
+    transfer(from,to,amount){
+        const transObj={from,to,amount}
+        this.data.push(transObj)
+        return transObj
+
+    }
     //挖矿
-    mine() {
+    mine(address) {
         //1、生成新的区块--一页新的记账加入了区块链
         //2、不停的计算hash 知道符合难度的条件的hash  获取记账权、
+
+        //旷工address奖励 100
+        this.transfer('0',address,100)
+
         const newBlock = this.genrateNewBlock()
         if (this.isValidaBlock(newBlock)&&this.isValidChain()) {
 
             this.blockchain.push(newBlock)
+            this.data=[]//清空data
             return newBlock
         }else{
            console.log('ERROR invalid block',newBlock)
@@ -91,7 +103,6 @@ class Blockchain {
             nonce,
             hash
         }
-
 
     }
     computeHashForBlock({index, prevHash, timestamp, data, nonce}){
