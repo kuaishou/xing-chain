@@ -56,9 +56,37 @@ class Blockchain {
     }
     //转账
     transfer(from,to,amount){
+        if(from!=='0'){
+            const blance= this.blance(from)
+            if(blance<amount){
+                console.log('not enough blance', from,blance,amount)
+                return
+            }
+        }
+        //签名校验（后面完成）
         const transObj={from,to,amount}
         this.data.push(transObj)
         return transObj
+
+    }
+    //查询余额功能
+    blance(address){
+        let blance=0;
+        this.blockchain.forEach(block=>{
+            if(!Array.isArray(block.data)){
+                // console.log('创世区块')
+                return
+            }
+            block.data.forEach(trans=>{
+                if(address==trans.from){
+                    blance-=trans.amount
+                }
+                if(address==trans.to){
+                    blance+=trans.amount
+                }
+            })
+        })
+        return blance
 
     }
     //挖矿
