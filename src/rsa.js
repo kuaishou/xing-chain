@@ -9,9 +9,10 @@ let keypair = ec.genKeyPair();
 function getPub(prv) {
     return ec.keyFromPrivate(prv).getPublic('hex').toString()
 }
-const res = generateKeys()
-console.log(res)
+const keys = generateKeys()
+// console.log(keys)
 
+//获取公钥和私钥
 function generateKeys() {
 
     const fileName = './wallet.json'
@@ -35,4 +36,31 @@ function generateKeys() {
     }
 }
 
+// 2、签名
+function sign({ from, to, amout }) {
+    const bufferMsg = Buffer.from(`${from}-${to}-${amout}`)
+    let signature = Buffer.from(keypair.sign(bufferMsg).toDER()).toString('hex')
+    return signature
+}
 
+// 3/校验签名--校验是没有私钥的，是公钥校验
+function verify({ from, to, amout, signature }, pub) {
+    //校验是没有私钥的
+    const keypairTemp = ec.keyFromPublic(pub,'hex')
+    const bufferMsg = Buffer.from(`${from}-${to}-${amout}`)
+    return keypairTemp.verify(bufferMsg, signature)
+}
+
+//验证一下
+const trans ={from:'xing',to:'jiang',amout:100}
+const trans1 ={from:'xing11',to:'jiang',amout:100}
+const signature=sign(trans)
+trans.signature=signature
+console.log('签名',signature)
+const isVerify=verify(trans,keys.pub)
+console.log('校验签名',isVerify)
+
+//用未被签名的trans1进行校验
+trans1.signature=signature
+const isVerify1=verify(trans1,keys.pub)
+console.log('校验签名错误',isVerify1)
