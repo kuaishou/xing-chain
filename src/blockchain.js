@@ -33,8 +33,8 @@
 //         nonce: "随机数"
 //     }
 // ]
-
-const { error } = require('console')
+const dgram=require('dgram')
+const udp=dgram.createSocket('udp4')//创建udp连接
 const copypto = require('crypto')
 const initBlock = {
     index: 0,
@@ -49,7 +49,25 @@ class Blockchain {
         this.blockchain = [initBlock]
         this.data = []
         this.difficulty = 4
-        console.log('one hash', this.computeHash(0, '0', new Date().getTime(), "hello xing chain", 1))
+        //所有的网络节点信息，address port
+        this.peers=[]
+        //种子节点
+        this.seed={port:8001,address:"localhost"}
+        this.udp=dgram.createSocket('udp4')
+        this.init()
+        // console.log('one hash', this.computeHash(0, '0', new Date().getTime(), "hello xing chain", 1))
+    }
+    init(){
+        this.bindP2p()
+        this.bindExit()
+    }
+    bindP2p(){
+
+    }
+    bindExit(){
+        process.on('exit',()=>{
+            console.log('[信息]： 网络一线牵 珍惜这段缘 再见')
+        })
     }
     getLastBlock() {
         return this.blockchain[this.blockchain.length - 1]
