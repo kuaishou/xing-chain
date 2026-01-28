@@ -33,9 +33,10 @@
 //         nonce: "随机数"
 //     }
 // ]
-const dgram=require('dgram')
-const udp=dgram.createSocket('udp4')//创建udp连接
+const dgram = require('dgram')
+const udp = dgram.createSocket('udp4')//创建udp连接
 const copypto = require('crypto')
+const { type } = require('os')
 const initBlock = {
     index: 0,
     data: 'hello xing chain',
@@ -50,57 +51,161 @@ class Blockchain {
         this.data = []
         this.difficulty = 4
         //所有的网络节点信息，address port
-        this.peers=[]
+        this.peers = []
         //种子节点
-        this.seed={port:8001,address:"localhost"}
-        this.udp=dgram.createSocket('udp4')
+        this.seed = { port: 8001, address: "localhost" }
+        this.udp = dgram.createSocket('udp4')
         this.init()
         // console.log('one hash', this.computeHash(0, '0', new Date().getTime(), "hello xing chain", 1))
     }
-    init(){
+    init() {
         this.bindP2p()
         this.bindExit()
     }
-    bindP2p(){
+    bindP2p() {
+        this.udp.on('message', (data, remote) => {
+            const { address, port } = remote
+            const action = JSON.parse(data)
+            // {
+            //     type:'你要干啥',
+            //     data:'具体传递的消息'
+            // }
+            if (action.type) {
+                this.dispatch(action, { address, port })
+            }
+        })
+        this.udp.on('listening', () => {
+            const address = this.udp.address()
+            console.log("[信息]：udp监听完毕" + address.port)
+        })
+
+        //区分种子接地那和普通节点，普通节点的端口0即可，随便一个端口即可
+        // 种子节点端口必须约定好
+        const port = Number(process.argv[2]) || 0
+        this.startNode(port)
 
     }
-    bindExit(){
-        process.on('exit',()=>{
+    bindExit() {
+        process.on('exit', () => {
             console.log('[信息]： 网络一线牵 珍惜这段缘 再见')
         })
     }
+    startNode(port) {
+        this.udp.bind(port)
+        if (port !== 8001) {
+            this.send({
+                type: 'newpeer'
+            }, this.seed.port, this.seed.address)
+            //把种子节点加入到本地节点中
+            this.peers.push(this.seed)
+        }
+
+    }
+    send(message, port, address) {
+        console.log('senddd', message, port, address)
+        this.udp.send(JSON.stringify(message), port, address)
+    }
+    boardcast(action) {
+        //广播全场
+        this.peers.forEach(v => {
+            console.log('广播', action, v)
+            this.send(action, v.port, v.address)
+        })
+    }
+    addPeers(newPeers) {
+        newPeers.forEach(peer => {
+            if (!this.peers.find(v => this.isEqualObj(v, peer))) {
+                this.peers.push(peer)
+            }
+        })
+
+    }
+    dispatch(action, remote) {
+        // console.log('接收到P2P网络消息了', action)
+        switch (action.type) {
+            case 'newpeer':
+                // 1.你的公网IP和port是什么
+                this.send({
+                    type: 'romoteAddress',
+                    data: remote
+                }, remote.port, remote.address)
+                // 2、现在全部节点的列表
+                this.send({
+                    type: 'peerList',
+                    data: this.peers
+                }, remote.port, remote.address)
+                // 3、告诉所有已知节点  来了新朋友 快打招呼
+                this.boardcast({
+                    type: 'sayhi',
+                    data: remote
+                })
+                this.peers.push(remote)
+                // 4、告诉你现在区块链的数据
+                console.log('你好啊， 新朋友，请你喝茶', remote)
+                break
+            case "romoteAddress":
+                // 存储远程消息，退出的时候用
+                this.remote = action.data
+                break
+            case "peerList":
+                // 远程告诉我 现在所有的节点列表
+                const newPeers = action.data
+                this.addPeers(newPeers)
+                break
+            case "sayhi":
+                let remotePeer = action.data
+                this.peers.push(remotePeer)
+                console.log('[信息]：新朋友你好，相识就是缘分', remote)
+                this.send({ type: 'hi', data: 'hidata' }, remote.port, remote.address)
+                break
+            case "hi":
+                console.log(`${remote.address}:${remote.port}:${action.data}`)
+                break
+            default:
+                console.log('这个action不认识')
+        }
+
+    }
+    isEqualObj(peer1, peer2) {
+        return peer1.address === peer2.address && peer1.port === peer2.port
+
+    }
+
+
+
     getLastBlock() {
         return this.blockchain[this.blockchain.length - 1]
     }
+
     //转账
-    transfer(from,to,amount){
-        if(from!=='0'){
-            const blance= this.blance(from)
-            if(blance<amount){
-                console.log('not enough blance', from,blance,amount)
+    transfer(from, to, amount) {
+        if (from !== '0') {
+            const blance = this.blance(from)
+            if (blance < amount) {
+                console.log('not enough blance', from, blance, amount)
                 return
             }
         }
         //签名校验（后面完成）
-        const transObj={from,to,amount}
+        const transObj = { from, to, amount }
         this.data.push(transObj)
         return transObj
 
     }
     //查询余额功能
-    blance(address){
-        let blance=0;
-        this.blockchain.forEach(block=>{
-            if(!Array.isArray(block.data)){
+    blance(address) {
+        let blance = 0;
+        this.blockchain.forEach(block => {
+            if (!Array.isArray(block.data)) {
                 // console.log('创世区块')
                 return
             }
-            block.data.forEach(trans=>{
-                if(address==trans.from){
-                    blance-=trans.amount
+            block.data.forEach(trans => {
+                if (address == trans.from) {
+                    blance -= trans.amount
                 }
-                if(address==trans.to){
-                    blance+=trans.amount
+                if (address == trans.to) {
+                    blance += trans.amount
                 }
             })
         })
@@ -113,16 +218,16 @@ class Blockchain {
         //2、不停的计算hash 知道符合难度的条件的hash  获取记账权、
 
         //旷工address奖励 100
-        this.transfer('0',address,100)
+        this.transfer('0', address, 100)
 
         const newBlock = this.genrateNewBlock()
-        if (this.isValidaBlock(newBlock)&&this.isValidChain()) {
+        if (this.isValidaBlock(newBlock) && this.isValidChain()) {
 
             this.blockchain.push(newBlock)
-            this.data=[]//清空data
+            this.data = []//清空data
             return newBlock
-        }else{
-           console.log('ERROR invalid block',newBlock)
+        } else {
+            console.log('ERROR invalid block', newBlock)
         }
 
 
@@ -151,7 +256,7 @@ class Blockchain {
         }
 
     }
-    computeHashForBlock({index, prevHash, timestamp, data, nonce}){
+    computeHashForBlock({ index, prevHash, timestamp, data, nonce }) {
         return this.computeHash(index, prevHash, timestamp, data, nonce)
     }
     //生成hash
@@ -161,7 +266,7 @@ class Blockchain {
             .digest('hex')
     }
     //校验区块
-    isValidaBlock(newBlock,lastBlock=this.getLastBlock()) {
+    isValidaBlock(newBlock, lastBlock = this.getLastBlock()) {
         //1、新区块的index等于最后一个区块的index+1
         // 2、新区块的时间大于最后一个区块的time
         // 3、新区块的PrevHash是最后一个区块的hash
@@ -175,22 +280,22 @@ class Blockchain {
             return false
         } else if (newBlock.hash.slice(0, this.difficulty) !== '0'.repeat(this.difficulty)) {
             return false
-        }else if(newBlock.hash!==this.computeHashForBlock(newBlock)){
+        } else if (newBlock.hash !== this.computeHashForBlock(newBlock)) {
             return false
         }
         return true
 
     }
     //校验区块链
-    isValidChain(chain=this.blockchain) {
-        for(let i=chain.length-1;i>=1;i=i-1){
-            if(!this.isValidaBlock(chain[i],chain[i-1])){
+    isValidChain(chain = this.blockchain) {
+        for (let i = chain.length - 1; i >= 1; i = i - 1) {
+            if (!this.isValidaBlock(chain[i], chain[i - 1])) {
                 return false
             }
 
         }
-                //校验创世区块
-        if(JSON.stringify(chain[0])!==JSON.stringify(initBlock)){
+        //校验创世区块
+        if (JSON.stringify(chain[0]) !== JSON.stringify(initBlock)) {
             return false
         }
         return true
@@ -204,4 +309,4 @@ class Blockchain {
 // block.mine()
 // console.log(block.blockchain)
 
-module.exports= Blockchain;
+module.exports = Blockchain;

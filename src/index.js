@@ -4,6 +4,9 @@ const blockChain = new BlockChain()
 
 const Table = require("cli-table")
 function formatLog(data) {
+    if (!data || data.length === 0) {
+        return
+    }
     if (!Array.isArray(data)) {
         data = [data]
     }
@@ -63,6 +66,28 @@ vorpal.command('chain', "查看区块链")
     .action(function (args, callback) {
         formatLog(blockChain.blockchain)
         //  console.log(blockChain.blockchain)
+        callback()
+    })
+
+vorpal.command('pub', "查看本地地址")
+    .action(function (args, callback) {
+        console.log(rsa.keys.pub)
+        callback()
+    })
+vorpal.command('peers', "查看网络节点列表")
+    .action(function (args, callback) {
+        formatLog(blockChain.peers)
+        //  console.log(blockChain.blockchain)
+        callback()
+    })
+
+
+vorpal.command('chat <msg>', "跟别的节点打招呼一下")
+    .action(function (args, callback) {
+        blockChain.boardcast({
+            type: 'hi',
+            data: args.msg
+        })
         callback()
     })
 
