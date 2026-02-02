@@ -108,7 +108,7 @@ class Blockchain {
     boardcast(action) {
         //广播全场
         this.peers.forEach(v => {
-            console.log('广播', action, v)
+            // console.log('广播', action, v)
             this.send(action, v.port, v.address)
         })
     }
@@ -154,7 +154,7 @@ class Blockchain {
                 //同步本地链
                 let allData = JSON.parse(action.data)
                 let newChain = allData.blockchain
-               this.replaceChain(newChain)
+                this.replaceChain(newChain)
                 break
             case "romoteAddress":
                 // 存储远程消息，退出的时候用
@@ -173,6 +173,27 @@ class Blockchain {
                 break
             case "hi":
                 console.log(`${remote.address}:${remote.port}:${action.data}`)
+                break
+            case "mine":
+                // 网络上有人挖矿成功了
+                const lastBlock=this.getLastBlock()
+                if (lastBlock.hash === action.data.hash) {
+                    // 重复消息
+                    return
+                }
+                if (this.isValidaBlock(action.data, lastBlock)) {
+                    console.log("[信息] 有朋友挖矿成功让我们一起为他喝彩")
+                    this.blockchain.push(action.data)
+                    // 清空本地消息
+                    this.data = []
+                    this.boardcast({
+                        type: 'mine',
+                        data: action.data
+                    })
+                } else {
+                    console.log('挖矿区块不合法')
+                }
+
                 break
             default:
                 console.log('这个action不认识')
@@ -238,6 +259,10 @@ class Blockchain {
 
             this.blockchain.push(newBlock)
             this.data = []//清空data
+            this.boardcast({
+                type: "mine",
+                data: newBlock
+            })
             return newBlock
         } else {
             console.log('ERROR invalid block', newBlock)
@@ -320,7 +345,7 @@ class Blockchain {
             return
         }
         if (this.isValidChain(newChain) && newChain.length > this.blockchain.length) {
-        //    拷贝一份
+            //    拷贝一份
             this.blockchain = JSON.parse(JSON.stringify(newChain))
         } else {
             console.log("[错误]：不合法的链")
