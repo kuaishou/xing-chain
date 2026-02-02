@@ -62,7 +62,7 @@ vorpal.command('mine <address>', "挖矿")
         callback()
     })
 
-vorpal.command('chain', "查看区块链")
+vorpal.command('blockchain', "查看区块链")
     .action(function (args, callback) {
         formatLog(blockChain.blockchain)
         //  console.log(blockChain.blockchain)

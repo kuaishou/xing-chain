@@ -102,7 +102,7 @@ class Blockchain {
 
     }
     send(message, port, address) {
-        console.log('senddd', message, port, address)
+        // console.log('senddd', message, port, address)
         this.udp.send(JSON.stringify(message), port, address)
     }
     boardcast(action) {
@@ -120,6 +120,7 @@ class Blockchain {
         })
 
     }
+
     dispatch(action, remote) {
         // console.log('接收到P2P网络消息了', action)
         switch (action.type) {
@@ -139,9 +140,21 @@ class Blockchain {
                     type: 'sayhi',
                     data: remote
                 })
-                this.peers.push(remote)
                 // 4、告诉你现在区块链的数据
+                this.send({
+                    type: 'blockchain',
+                    data: JSON.stringify({
+                        blockchain: this.blockchain
+                    })
+                }, remote.port, remote.address)
                 console.log('你好啊， 新朋友，请你喝茶', remote)
+                this.peers.push(remote)
+                break
+            case "blockchain":
+                //同步本地链
+                let allData = JSON.parse(action.data)
+                let newChain = allData.blockchain
+               this.replaceChain(newChain)
                 break
             case "romoteAddress":
                 // 存储远程消息，退出的时候用
@@ -299,6 +312,19 @@ class Blockchain {
             return false
         }
         return true
+
+    }
+    replaceChain(newChain) {
+        //先不校验交易
+        if (newChain.length === 1) {
+            return
+        }
+        if (this.isValidChain(newChain) && newChain.length > this.blockchain.length) {
+        //    拷贝一份
+            this.blockchain = JSON.parse(JSON.stringify(newChain))
+        } else {
+            console.log("[错误]：不合法的链")
+        }
 
     }
 }
