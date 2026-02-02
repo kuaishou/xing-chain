@@ -37,30 +37,34 @@ function generateKeys() {
 }
 
 // 2、签名
-function sign({ from, to, amout }) {
-    const bufferMsg = Buffer.from(`${from}-${to}-${amout}`)
+function sign({ from, to, amout, timestamp }) {
+    const bufferMsg = Buffer.from(`${timestamp}-${amout}-${from}-${to}`)
     let signature = Buffer.from(keypair.sign(bufferMsg).toDER()).toString('hex')
     return signature
 }
 
 // 3/校验签名--校验是没有私钥的，是公钥校验
-function verify({ from, to, amout, signature }, pub) {
+function verify({ from, to, amout, timestamp, signature }, pub) {
     //校验是没有私钥的
-    const keypairTemp = ec.keyFromPublic(pub,'hex')
-    const bufferMsg = Buffer.from(`${from}-${to}-${amout}`)
+    const keypairTemp = ec.keyFromPublic(pub, 'hex')
+    const bufferMsg = Buffer.from(`${timestamp}-${amout}-${from}-${to}`)
     return keypairTemp.verify(bufferMsg, signature)
 }
 
 //验证一下
-const trans ={from:'xing',to:'jiang',amout:100}
-const trans1 ={from:'xing11',to:'jiang',amout:100}
-const signature=sign(trans)
-trans.signature=signature
-console.log('签名',signature)
-const isVerify=verify(trans,keys.pub)
-console.log('校验签名',isVerify)
+const trans = { from: 'xing', to: 'jiang', amout: 100 }
+const trans1 = { from: 'xing11', to: 'jiang', amout: 100 }
+const signature = sign(trans)
+trans.signature = signature
+console.log('签名', signature)
+const isVerify = verify(trans, keys.pub)
+console.log('校验签名', isVerify)
 
 //用未被签名的trans1进行校验
-trans1.signature=signature
-const isVerify1=verify(trans1,keys.pub)
-console.log('校验签名错误',isVerify1)
+trans1.signature = signature
+const isVerify1 = verify(trans1, keys.pub)
+console.log('校验签名错误', isVerify1)
+module.exports = {
+  sign,
+  verify,
+};

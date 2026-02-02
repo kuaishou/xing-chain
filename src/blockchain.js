@@ -36,6 +36,7 @@
 const dgram = require('dgram')
 const udp = dgram.createSocket('udp4')//创建udp连接
 const copypto = require('crypto')
+const rsa = require('./rsa')
 const { type } = require('os')
 const initBlock = {
     index: 0,
@@ -174,9 +175,21 @@ class Blockchain {
             case "hi":
                 console.log(`${remote.address}:${remote.port}:${action.data}`)
                 break
+            case "trans":
+                // 网络上收到的交易请求
+                if(!this.data.find(v=>this.isEqualObj(v,action.data))){
+console.log("有新的交易")
+this.addTrans(action.data)
+this.boardcast({
+    type:'trans',
+    data:action.data
+})
+                }
+                break
+
             case "mine":
                 // 网络上有人挖矿成功了
-                const lastBlock=this.getLastBlock()
+                const lastBlock = this.getLastBlock()
                 if (lastBlock.hash === action.data.hash) {
                     // 重复消息
                     return
@@ -201,7 +214,13 @@ class Blockchain {
 
     }
     isEqualObj(peer1, peer2) {
-        return peer1.address === peer2.address && peer1.port === peer2.port
+        const key1=Object.keys(peer1)
+        const key2=Object.keys(peer2)
+        if(key1.length!==key1.length){
+            return false
+        }
+        return key1.every(key=>peer1[key]===peer2[key])
+        // return peer1.address === peer2.address && peer1.port === peer2.port
 
     }
 
@@ -220,10 +239,17 @@ class Blockchain {
                 return
             }
         }
+        const timestamp = new Date().getTime()
         //签名校验（后面完成）
-        const transObj = { from, to, amount }
-        this.data.push(transObj)
-        return transObj
+        const sig = rsa.sign({ from, to, amount, timestamp })
+        const sigTrans = { from, to, amount, timestamp, sig }
+        this.boardcast({
+            type: 'trans',
+            data: sigTrans
+        })
+        this.data.push(sigTrans)
+
+        return sigTrans
 
     }
     //查询余额功能
@@ -245,6 +271,17 @@ class Blockchain {
         })
         return blance
 
+    }
+    isValidTransfer(trans){
+        // 是不是合法的转账
+        // 地址使用公钥
+        return rsa.verify(trans,trans.from)
+
+    }
+    addTrans(trans){
+        if(this.isValidTransfer(trans)){
+            this.data.push(trans)
+        }
     }
     //挖矿
     mine(address) {
