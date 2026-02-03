@@ -37,7 +37,6 @@ const dgram = require('dgram')
 const udp = dgram.createSocket('udp4')//创建udp连接
 const copypto = require('crypto')
 const rsa = require('./rsa')
-const { type } = require('os')
 const initBlock = {
     index: 0,
     data: 'hello xing chain',
@@ -72,6 +71,7 @@ class Blockchain {
             //     data:'具体传递的消息'
             // }
             if (action.type) {
+                console.log('sss', address, port)
                 this.dispatch(action, { address, port })
             }
         })
@@ -145,7 +145,8 @@ class Blockchain {
                 this.send({
                     type: 'blockchain',
                     data: JSON.stringify({
-                        blockchain: this.blockchain
+                        blockchain: this.blockchain,
+                        trans: this.data
                     })
                 }, remote.port, remote.address)
                 console.log('你好啊， 新朋友，请你喝茶', remote)
@@ -155,7 +156,10 @@ class Blockchain {
                 //同步本地链
                 let allData = JSON.parse(action.data)
                 let newChain = allData.blockchain
+                let newTrans = allData.trans
                 this.replaceChain(newChain)
+                console.log('allData', allData)
+                this.replaceTrans(newTrans)
                 break
             case "romoteAddress":
                 // 存储远程消息，退出的时候用
@@ -177,13 +181,13 @@ class Blockchain {
                 break
             case "trans":
                 // 网络上收到的交易请求
-                if(!this.data.find(v=>this.isEqualObj(v,action.data))){
-console.log("有新的交易")
-this.addTrans(action.data)
-this.boardcast({
-    type:'trans',
-    data:action.data
-})
+                if (!this.data.find(v => this.isEqualObj(v, action.data))) {
+                    console.log("有新的交易", action)
+                    this.addTrans(action.data)
+                    this.boardcast({
+                        type: 'trans',
+                        data: action.data
+                    })
                 }
                 break
 
@@ -214,12 +218,12 @@ this.boardcast({
 
     }
     isEqualObj(peer1, peer2) {
-        const key1=Object.keys(peer1)
-        const key2=Object.keys(peer2)
-        if(key1.length!==key1.length){
+        const key1 = Object.keys(peer1)
+        const key2 = Object.keys(peer2)
+        if (key1.length !== key1.length) {
             return false
         }
-        return key1.every(key=>peer1[key]===peer2[key])
+        return key1.every(key => peer1[key] === peer2[key])
         // return peer1.address === peer2.address && peer1.port === peer2.port
 
     }
@@ -232,6 +236,11 @@ this.boardcast({
 
     //转账
     transfer(from, to, amount) {
+        const timestamp = new Date().getTime()
+        //签名校验（后面完成）
+        const signature = rsa.sign({ from, to, amount, timestamp })
+        const sigTrans = { from, to, amount, timestamp, signature }
+
         if (from !== '0') {
             const blance = this.blance(from)
             if (blance < amount) {
@@ -239,10 +248,7 @@ this.boardcast({
                 return
             }
         }
-        const timestamp = new Date().getTime()
-        //签名校验（后面完成）
-        const sig = rsa.sign({ from, to, amount, timestamp })
-        const sigTrans = { from, to, amount, timestamp, sig }
+
         this.boardcast({
             type: 'trans',
             data: sigTrans
@@ -272,19 +278,31 @@ this.boardcast({
         return blance
 
     }
-    isValidTransfer(trans){
+    isValidTransfer(trans) {
         // 是不是合法的转账
         // 地址使用公钥
-        return rsa.verify(trans,trans.from)
+        return rsa.verify(trans, trans.from)
 
     }
-    addTrans(trans){
-        if(this.isValidTransfer(trans)){
+    addTrans(trans) {
+        if (this.isValidTransfer(trans)) {
             this.data.push(trans)
+        }
+    }
+    replaceTrans(trans) {
+        if (trans && trans.every(v => this.isValidTransfer(v))) {
+            this.data = trans
         }
     }
     //挖矿
     mine(address) {
+        // 校验交易合法性
+        // if (!this.data.every(v => this.isValidTransfer(v))) {
+        //     console.log('trans nor valid')
+        //     return
+        // }
+        this.data=this.data.filter(v=>this.isValidTransfer(v))
+
         //1、生成新的区块--一页新的记账加入了区块链
         //2、不停的计算hash 知道符合难度的条件的hash  获取记账权、
 
@@ -304,8 +322,6 @@ this.boardcast({
         } else {
             console.log('ERROR invalid block', newBlock)
         }
-
-
     }
     //生成新的区块
     genrateNewBlock() {

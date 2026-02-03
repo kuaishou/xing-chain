@@ -3,6 +3,7 @@ const BlockChain = require("./blockchain")
 const blockChain = new BlockChain()
 
 const Table = require("cli-table")
+const rsa = require('./rsa')
 function formatLog(data) {
     if (!data || data.length === 0) {
         return
@@ -26,9 +27,9 @@ function formatLog(data) {
     console.log(table.toString())
 }
 
-vorpal.command('trans <from> <to> <amount>', "转账")
+vorpal.command('trans <to> <amount>', "转账")
     .action(function (args, callback) {
-        const trans = blockChain.transfer(args.from, args.to, args.amount)
+        const trans = blockChain.transfer(rsa.keys.pub, args.to, args.amount)
         if (trans) {
             formatLog(trans)
         }
@@ -52,9 +53,9 @@ vorpal.command('blance <address>', "查看账户余额")
         }
         callback()
     })
-vorpal.command('mine <address>', "挖矿")
+vorpal.command('mine', "挖矿")
     .action(function (args, callback) {
-        const newBlock = blockChain.mine(args.address)
+        const newBlock = blockChain.mine(rsa.keys.pub)
         if (newBlock) {
             formatLog(newBlock)
             // console.log(newBlock)
@@ -91,6 +92,12 @@ vorpal.command('chat <msg>', "跟别的节点打招呼一下")
         callback()
     })
 
+vorpal.command('pending', "查看还没被打包的交易")
+    .action(function (args, callback) {
+        formatLog(blockChain.data)
+        //  console.log(blockChain.blockchain)
+        callback()
+    })
 console.log("welcome to xing chain")
 vorpal.exec('help')
 vorpal.delimiter("xing-chain =>").show()

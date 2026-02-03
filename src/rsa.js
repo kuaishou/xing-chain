@@ -52,19 +52,20 @@ function verify({ from, to, amout, timestamp, signature }, pub) {
 }
 
 //验证一下
-const trans = { from: 'xing', to: 'jiang', amout: 100 }
-const trans1 = { from: 'xing11', to: 'jiang', amout: 100 }
-const signature = sign(trans)
-trans.signature = signature
-console.log('签名', signature)
-const isVerify = verify(trans, keys.pub)
-console.log('校验签名', isVerify)
+// const trans = { from: 'xing', to: 'jiang', amout: 100 }
+// const trans1 = { from: 'xing11', to: 'jiang', amout: 100 }
+// const signature = sign(trans)
+// trans.signature = signature
+// console.log('签名', signature)
+// const isVerify = verify(trans, keys.pub)
+// console.log('校验签名', isVerify)
 
-//用未被签名的trans1进行校验
-trans1.signature = signature
-const isVerify1 = verify(trans1, keys.pub)
-console.log('校验签名错误', isVerify1)
+// //用未被签名的trans1进行校验
+// trans1.signature = signature
+// const isVerify1 = verify(trans1, keys.pub)
+// console.log('校验签名错误', isVerify1)
 module.exports = {
   sign,
   verify,
+  keys
 };
