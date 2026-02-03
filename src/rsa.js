@@ -22,7 +22,7 @@ function generateKeys() {
             keypair = ec.keyFromPrivate(res.prv)
             return res;
         } else {
-            throw 'not valid wallet.json'
+            throw new Error('not valid wallet.json')
         }
     } catch (error) {
         //没有wallet文件就重新写一个wallet.json
