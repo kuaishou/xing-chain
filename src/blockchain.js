@@ -34,8 +34,8 @@
 //     }
 // ]
 const dgram = require('dgram')
-const udp = dgram.createSocket('udp4')//创建udp连接
 const copypto = require('crypto')
+let fs = require('fs')
 const rsa = require('./rsa')
 const initBlock = {
     index: 0,
@@ -48,10 +48,12 @@ const initBlock = {
 class Blockchain {
     constructor() {
         this.blockchain = [initBlock]
+        //还没打包的交易
         this.data = []
         this.difficulty = 4
         //所有的网络节点信息，address port
         this.peers = []
+        this.remote = {}
         //种子节点
         this.seed = { port: 8001, address: "localhost" }
         this.udp = dgram.createSocket('udp4')
@@ -71,7 +73,7 @@ class Blockchain {
             //     data:'具体传递的消息'
             // }
             if (action.type) {
-                console.log('sss', address, port)
+                // console.log('sss', address, port)
                 this.dispatch(action, { address, port })
             }
         })
@@ -113,14 +115,7 @@ class Blockchain {
             this.send(action, v.port, v.address)
         })
     }
-    addPeers(newPeers) {
-        newPeers.forEach(peer => {
-            if (!this.peers.find(v => this.isEqualObj(v, peer))) {
-                this.peers.push(peer)
-            }
-        })
 
-    }
 
     dispatch(action, remote) {
         // console.log('接收到P2P网络消息了', action)
@@ -227,7 +222,14 @@ class Blockchain {
         // return peer1.address === peer2.address && peer1.port === peer2.port
 
     }
+    addPeers(newPeers) {
+        newPeers.forEach(peer => {
+            if (!this.peers.find(v => this.isEqualObj(v, peer))) {
+                this.peers.push(peer)
+            }
+        })
 
+    }
 
 
     getLastBlock() {
@@ -247,12 +249,13 @@ class Blockchain {
                 console.log('not enough blance', from, blance, amount)
                 return
             }
+            this.boardcast({
+                type: 'trans',
+                data: sigTrans
+            })
         }
 
-        this.boardcast({
-            type: 'trans',
-            data: sigTrans
-        })
+
         this.data.push(sigTrans)
 
         return sigTrans
@@ -301,12 +304,12 @@ class Blockchain {
         //     console.log('trans nor valid')
         //     return
         // }
-        this.data=this.data.filter(v=>this.isValidTransfer(v))
+        this.data = this.data.filter(v => this.isValidTransfer(v))
 
         //1、生成新的区块--一页新的记账加入了区块链
         //2、不停的计算hash 知道符合难度的条件的hash  获取记账权、
 
-        //旷工address奖励 100
+        //旷工address奖励 100 
         this.transfer('0', address, 100)
 
         const newBlock = this.genrateNewBlock()
